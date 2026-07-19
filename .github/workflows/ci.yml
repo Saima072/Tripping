@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tripswipe
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Generate Prisma client & apply migrations
+        run: npx prisma migrate deploy && npx prisma generate
+        working-directory: server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tripswipe
+      - name: Seed sanity check
+        run: npm run seed --workspace server
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tripswipe
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build
+        run: npm run build
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high

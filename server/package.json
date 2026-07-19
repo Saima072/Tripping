@@ -1,0 +1,43 @@
+{
+  "name": "@tripswipe/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prisma:generate": "prisma generate",
+    "gen:embedded-schema": "node -e \"const fs=require('fs');const d='prisma/migrations';const sql=fs.readdirSync(d).filter(f=>fs.statSync(d+'/'+f).isDirectory()).sort().map(f=>fs.readFileSync(d+'/'+f+'/migration.sql','utf8')).join('\\n');fs.writeFileSync('src/embedded-schema.ts','// AUTO-GENERATED from prisma/migrations — regenerate with: npm run gen:embedded-schema\\nexport const SCHEMA_SQL: string = '+JSON.stringify(sql)+';\\n')\"",
+    "prisma:migrate": "prisma migrate deploy",
+    "seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.4",
+    "@prisma/client": "^6.10.0",
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pglite-prisma-adapter": "^0.6.1",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.8",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.0",
+    "prisma": "^6.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.8.0"
+  }
+}
