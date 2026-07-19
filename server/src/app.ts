@@ -50,7 +50,9 @@ export function createApp() {
     ensureDbReady().then(() => next(), next);
   });
 
-  app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  app.get("/api/health", (_req, res) =>
+    res.json({ ok: true, db: config.embeddedDb ? "embedded" : "postgres" })
+  );
   app.use("/api/auth", authRouter);
   app.use("/api/deck", deckRouter);
   app.use("/api/swipes", swipesRouter);
