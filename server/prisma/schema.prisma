@@ -1,0 +1,137 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Season {
+  spring
+  summer
+  fall
+  winter
+}
+
+enum SwipeDirection {
+  left
+  right
+}
+
+model Destination {
+  id              String   @id @default(uuid()) @db.Uuid
+  city            String
+  country         String
+  region          String
+  lat             Decimal  @db.Decimal(9, 6)
+  lng             Decimal  @db.Decimal(9, 6)
+  tags            String[]
+  heroImageUrl    String   @map("hero_image_url")
+  popularityScore Int      @map("popularity_score")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  pricing    PricingBySeason[]
+  weather    WeatherBySeason[]
+  swipes     Swipe[]
+  shortlists Shortlist[]
+
+  @@unique([city, country])
+  @@map("destinations")
+}
+
+model PricingBySeason {
+  id            String      @id @default(uuid()) @db.Uuid
+  destinationId String      @map("destination_id") @db.Uuid
+  season        Season
+  priceLow      Decimal     @map("price_low") @db.Decimal(10, 2)
+  priceAvg      Decimal     @map("price_avg") @db.Decimal(10, 2)
+  priceHigh     Decimal     @map("price_high") @db.Decimal(10, 2)
+  currency      String      @default("USD")
+  source        String
+  lastUpdated   DateTime    @map("last_updated") @db.Date
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([destinationId, season])
+  @@map("pricing_by_season")
+}
+
+model WeatherBySeason {
+  id            String      @id @default(uuid()) @db.Uuid
+  destinationId String      @map("destination_id") @db.Uuid
+  season        Season
+  avgTempC      Decimal     @map("avg_temp_c") @db.Decimal(4, 1)
+  rainChancePct Int         @map("rain_chance_pct")
+  isBestTime    Boolean     @map("is_best_time")
+  destination   Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([destinationId, season])
+  @@map("weather_by_season")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  swipes        Swipe[]
+  shortlists    Shortlist[]
+  filters       UserFilters?
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// userId is nullable: on account deletion swipes are anonymized (user_id set
+// NULL) rather than deleted, so aggregate popularity signals survive without PII.
+model Swipe {
+  id            String         @id @default(uuid()) @db.Uuid
+  userId        String?        @map("user_id") @db.Uuid
+  destinationId String         @map("destination_id") @db.Uuid
+  direction     SwipeDirection
+  swipedAt      DateTime       @default(now()) @map("swiped_at")
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  destination   Destination    @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@index([userId, destinationId])
+  @@map("swipes")
+}
+
+model Shortlist {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @map("user_id") @db.Uuid
+  destinationId  String      @map("destination_id") @db.Uuid
+  dateRangeStart DateTime?   @map("date_range_start") @db.Date
+  dateRangeEnd   DateTime?   @map("date_range_end") @db.Date
+  createdAt      DateTime    @default(now()) @map("created_at")
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination    Destination @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, destinationId])
+  @@map("shortlists")
+}
+
+model UserFilters {
+  userId          String  @id @map("user_id") @db.Uuid
+  budgetCap       Decimal? @map("budget_cap") @db.Decimal(10, 2)
+  preferredSeason Season? @map("preferred_season")
+  preferredTags   String[] @map("preferred_tags")
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_filters")
+}

@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+html,
+body {
+  overscroll-behavior-y: none;
+  background: #0c0a1d;
+}
