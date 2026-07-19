@@ -45,6 +45,40 @@ npm run dev:web       # Vite on :5173, proxies /api → :4000
 
 Or run db + API in containers: `JWT_ACCESS_SECRET=... JWT_REFRESH_SECRET=... docker compose up`.
 
+### Zero-setup demo mode (no Postgres server)
+
+Set `EMBEDDED_DB=1` and the API runs Postgres **in-process** via
+[PGlite](https://pglite.dev) (Postgres compiled to WASM) — same Prisma schema,
+schema + full 173-destination seed created automatically on boot (~300 ms):
+
+```bash
+cd server && EMBEDDED_DB=1 npm run dev   # no DATABASE_URL or JWT secrets needed
+```
+
+⚠️ Embedded data is **ephemeral** — it lives in process memory and resets on
+every restart. Use it for demos and verification only, never production.
+
+## Deploying to Vercel (initial verification)
+
+The repo ships Vercel config that serves `web/` as static files and runs the
+whole Express API as a single serverless function (`api/index.ts`), validated
+with `vercel build`:
+
+1. Import the repo in Vercel (framework preset: **Other** — `vercel.json`
+   supplies the build command and output directory).
+2. Add env vars: `EMBEDDED_DB=1` for the self-contained demo (optionally
+   `JWT_ACCESS_SECRET`/`JWT_REFRESH_SECRET`; random per-boot values are used
+   if omitted). Nothing else is required.
+3. Deploy. The first request after each cold start pays ~1 s to boot + seed
+   the embedded database.
+
+Serverless caveats in demo mode: each function instance has its own ephemeral
+copy of the data (accounts/swipes vanish on cold starts), and the in-memory
+rate limits are per-instance. For a persistent deployment, drop `EMBEDDED_DB`,
+set `DATABASE_URL` to a hosted Postgres (e.g. Neon via the Vercel Marketplace —
+use the *pooled* connection string), set both JWT secrets, and run
+`prisma migrate deploy` + `npm run seed` against it once.
+
 ## API
 
 ```

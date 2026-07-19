@@ -3,6 +3,7 @@ import helmet from "helmet";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { config } from "./config.js";
+import { ensureDbReady } from "./lib/prisma.js";
 import { logger } from "./lib/logger.js";
 import { generalLimiter } from "./middleware/rateLimit.js";
 import { authRouter } from "./routes/auth.js";
@@ -42,6 +43,12 @@ export function createApp() {
   app.use(express.json({ limit: "16kb" }));
   app.use(cookieParser());
   app.use(generalLimiter);
+
+  // No-op for a real Postgres; in embedded mode this blocks requests until
+  // the in-process DB has its schema + seed (first request after cold start).
+  app.use((_req, _res, next) => {
+    ensureDbReady().then(() => next(), next);
+  });
 
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
   app.use("/api/auth", authRouter);

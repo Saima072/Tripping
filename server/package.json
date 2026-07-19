@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",
+    "gen:embedded-schema": "node -e \"const fs=require('fs');const d='prisma/migrations';const sql=fs.readdirSync(d).filter(f=>fs.statSync(d+'/'+f).isDirectory()).sort().map(f=>fs.readFileSync(d+'/'+f+'/migration.sql','utf8')).join('\\n');fs.writeFileSync('src/embedded-schema.ts','// AUTO-GENERATED from prisma/migrations — regenerate with: npm run gen:embedded-schema\\nexport const SCHEMA_SQL: string = '+JSON.stringify(sql)+';\\n')\"",
     "prisma:migrate": "prisma migrate deploy",
     "seed": "tsx prisma/seed.ts"
   },
@@ -16,6 +17,7 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "^0.5.4",
     "@prisma/client": "^6.10.0",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
@@ -24,6 +26,7 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "pglite-prisma-adapter": "^0.6.1",
     "zod": "^3.25.0"
   },
   "devDependencies": {

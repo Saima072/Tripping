@@ -1,77 +1,49 @@
 import { PrismaClient } from "@prisma/client";
-import { DESTINATIONS, type Season } from "./seed-data.js";
+import { SEED_LAST_UPDATED, SEED_SOURCE, expandSeedRows } from "../src/lib/seed-core.js";
 
 const prisma = new PrismaClient();
 
-const SEASONS: Season[] = ["spring", "summer", "fall", "winter"];
-const LAST_UPDATED = new Date("2026-07-01");
-
-function seasonTemp(season: Season, summerT: number, winterT: number): number {
-  const mid = (summerT + winterT) / 2;
-  switch (season) {
-    case "summer": return summerT;
-    case "winter": return winterT;
-    case "spring": return Math.round((mid - 0.1 * (summerT - winterT)) * 10) / 10;
-    case "fall": return Math.round((mid + 0.1 * (summerT - winterT)) * 10) / 10;
-  }
-}
-
-function heroImageUrl(city: string, country: string): string {
-  const q = encodeURIComponent(`${city} ${country} travel`);
-  return `https://source.unsplash.com/900x1200/?${q}`;
-}
-
+// Idempotent upsert-based seed for real (persistent) databases; safe to
+// re-run on the quarterly pricing refresh.
 async function main() {
-  for (const [
-    city, country, region, lat, lng, tags, popularity,
-    summerT, winterT, wetSeasons, nightlyAvg, bestSeasons,
-  ] of DESTINATIONS) {
+  for (const record of expandSeedRows()) {
+    const { seasons, ...fields } = record;
     const destination = await prisma.destination.upsert({
-      where: { city_country: { city, country } },
-      update: {
-        region, lat, lng, tags,
-        heroImageUrl: heroImageUrl(city, country),
-        popularityScore: popularity,
-      },
-      create: {
-        city, country, region, lat, lng, tags,
-        heroImageUrl: heroImageUrl(city, country),
-        popularityScore: popularity,
-      },
+      where: { city_country: { city: fields.city, country: fields.country } },
+      update: fields,
+      create: fields,
     });
 
-    for (const season of SEASONS) {
-      // High season carries an accommodation premium; wet/off seasons a discount.
-      const premium = bestSeasons.includes(season) ? 1.2 : wetSeasons.includes(season) ? 0.85 : 1.0;
-      const avg = Math.round(nightlyAvg * premium);
-      const priceLow = Math.round(avg * 0.7);
-      const priceHigh = Math.round(avg * 1.45);
-
+    for (const s of seasons) {
       await prisma.pricingBySeason.upsert({
-        where: { destinationId_season: { destinationId: destination.id, season } },
-        update: { priceLow, priceAvg: avg, priceHigh, lastUpdated: LAST_UPDATED },
+        where: { destinationId_season: { destinationId: destination.id, season: s.season } },
+        update: {
+          priceLow: s.priceLow,
+          priceAvg: s.priceAvg,
+          priceHigh: s.priceHigh,
+          lastUpdated: SEED_LAST_UPDATED,
+        },
         create: {
           destinationId: destination.id,
-          season,
-          priceLow,
-          priceAvg: avg,
-          priceHigh,
+          season: s.season,
+          priceLow: s.priceLow,
+          priceAvg: s.priceAvg,
+          priceHigh: s.priceHigh,
           currency: "USD",
-          source: "manual (Numbeo / Budget Your Trip)",
-          lastUpdated: LAST_UPDATED,
+          source: SEED_SOURCE,
+          lastUpdated: SEED_LAST_UPDATED,
         },
       });
 
-      const rain = wetSeasons.includes(season) ? 62 : 22;
       await prisma.weatherBySeason.upsert({
-        where: { destinationId_season: { destinationId: destination.id, season } },
+        where: { destinationId_season: { destinationId: destination.id, season: s.season } },
         update: {},
         create: {
           destinationId: destination.id,
-          season,
-          avgTempC: seasonTemp(season, summerT, winterT),
-          rainChancePct: rain,
-          isBestTime: bestSeasons.includes(season),
+          season: s.season,
+          avgTempC: s.avgTempC,
+          rainChancePct: s.rainChancePct,
+          isBestTime: s.isBestTime,
         },
       });
     }
