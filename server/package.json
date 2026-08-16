@@ -26,7 +26,7 @@
     "express-rate-limit": "^7.5.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
-    "pglite-prisma-adapter": "^0.6.1",
+    "pglite-prisma-adapter": "^0.7.2",
     "zod": "^3.25.0"
   },
   "devDependencies": {
